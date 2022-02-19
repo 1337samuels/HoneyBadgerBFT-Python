@@ -18,7 +18,7 @@ def hash(x):
     return hashlib.sha256(x).digest()
 
 
-def shared_coin(sid, pid, N, f, PK, SK, broadcast, receive):
+def shared_coin(sid, pid, N, f, PK, SK, broadcast, receive, add_delay):
     """A shared coin based on threshold signatures
 
     :param sid: a unique instance id
@@ -41,7 +41,8 @@ def shared_coin(sid, pid, N, f, PK, SK, broadcast, receive):
             logger.debug(f'entering loop',
                          extra={'nodeid': pid, 'epoch': '?'})
             # New shares for some round r, from sender i
-            (i, (_, r, sig)) = receive()
+            (i, (_, r, sig), delay_to_add) = receive()
+            add_delay(delay_to_add)
             logger.debug(f'received i, _, r, sig: {i, _, r, sig}',
                          extra={'nodeid': pid, 'epoch': r})
             assert i in range(N)

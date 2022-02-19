@@ -73,15 +73,15 @@ def simple_router(N, maxdelay=0.005, seed=None):
         def _send(j, o):
             delay = rnd.random() * maxdelay
             messageLen = sum([len(s) if type(s) is str else 0 for s in o[1][2]])
-            delay *= math.log(messageLen) if messageLen != 0 else 1
-            gevent.spawn_later(delay, queues[j].put_nowait, (i,o))
+            delay_to_add = delay * (1 - (math.log(messageLen) if messageLen > 3 else 1))
+            gevent.spawn_later(delay, queues[j].put_nowait, (i,o, delay_to_add))
         return _send
 
     def makeRecv(j):
         def _recv():
-            (i,o) = queues[j].get()
+            (i,o,delay_to_add) = queues[j].get()
             #print 'RECV %8s [%2d -> %2d]' % (o[0], i, j)
-            return (i,o)
+            return (i,o,delay_to_add)
         return _recv
 
     return ([makeSend(i) for i in range(N)],

@@ -58,7 +58,7 @@ def wait_for_conf_values(*, pid, N, f, epoch, conf_sent, bin_values,
         bv_signal.wait()
 
 
-def binaryagreement(sid, pid, N, f, coin, input, decide, broadcast, receive):
+def binaryagreement(sid, pid, N, f, coin, input, decide, broadcast, receive, add_delay):
     """Binary consensus from [MMR14]. It takes an input ``vi`` and will
     finally write the decided value into ``decide`` channel.
 
@@ -86,7 +86,8 @@ def binaryagreement(sid, pid, N, f, coin, input, decide, broadcast, receive):
 
     def _recv():
         while True:  # not finished[pid]:
-            (sender, msg) = receive()
+            (sender, msg, delay_to_add) = receive()
+            add_delay(delay_to_add)
             logger.debug(f'receive {msg} from node {sender}',
                          extra={'nodeid': pid, 'epoch': msg[1]})
             assert sender in range(N)

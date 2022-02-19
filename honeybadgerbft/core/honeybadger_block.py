@@ -25,7 +25,7 @@ def deserialize_UVW(U, V, W):
     return U, V, W
 
 
-def honeybadger_block(pid, N, f, PK, SK, propose_in, acs_in, acs_out, tpke_bcast, tpke_recv):
+def honeybadger_block(pid, N, f, PK, SK, propose_in, acs_in, acs_out, tpke_bcast, tpke_recv, add_delay):
     """The HoneyBadgerBFT algorithm for a single block
 
     :param pid: my identifier
@@ -77,7 +77,8 @@ def honeybadger_block(pid, N, f, PK, SK, propose_in, acs_in, acs_out, tpke_bcast
     # Receive everyone's shares
     shares_received = {}
     while len(shares_received) < f+1:
-        (j, shares) = tpke_recv()
+        (j, shares, delay_to_add) = tpke_recv()
+        add_delay(delay_to_add)
         if j in shares_received:
             # TODO: alert that we received a duplicate
             print('Received a duplicate decryption share from', j)

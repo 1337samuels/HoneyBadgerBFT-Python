@@ -129,7 +129,7 @@ def merkleVerify(N, val, roothash, branch, index):
     return True
 
 
-def reliablebroadcast(sid, pid, N, f, leader, input, receive, send):
+def reliablebroadcast(sid, pid, N, f, leader, input, receive, send, add_delay):
     """Reliable broadcast
 
     :param int pid: ``0 <= pid < N``
@@ -230,7 +230,8 @@ def reliablebroadcast(sid, pid, N, f, leader, input, receive, send):
         return m
 
     while True:  # main receive loop
-        sender, msg = receive()
+        sender, msg, delay_to_add = receive()
+        add_delay(delay_to_add)
         if msg[0] == 'VAL' and fromLeader is None:
             # Validation
             (_, roothash, branch, stripe) = msg

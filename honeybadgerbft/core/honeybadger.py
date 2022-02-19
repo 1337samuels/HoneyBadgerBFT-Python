@@ -29,7 +29,7 @@ BroadcastReceiverQueues = namedtuple(
 
 
 def broadcast_receiver(recv_func, recv_queues):
-    sender, (tag, j, msg) = recv_func()
+    sender, (tag, j, msg), deleay_to_add = recv_func()
     if tag not in BroadcastTag.__members__:
         # TODO Post python 3 port: Add exception chaining.
         # See https://www.python.org/dev/peps/pep-3134/
@@ -40,7 +40,7 @@ def broadcast_receiver(recv_func, recv_queues):
     if tag != BroadcastTag.TPKE.value:
         recv_queue = recv_queue[j]
 
-    recv_queue.put_nowait((sender, msg))
+    recv_queue.put_nowait((sender, msg, deleay_to_add))
 
 
 def broadcast_receiver_loop(recv_func, recv_queues):
@@ -90,6 +90,10 @@ class HoneyBadgerBFT():
         self._per_round_recv = {}  # Buffer of incoming messages
         self.messages_seen = set()
         self.bytes_sent = 0
+        self.delay = 0
+    
+    def add_delay(self, amount):
+        self.delay += amount
 
     def submit_tx(self, tx):
         """Appends the given transaction to the transaction buffer.
@@ -111,7 +115,7 @@ class HoneyBadgerBFT():
         def _recv():
             """Receive messages."""
             while True:
-                (sender, (r, msg)) = self._recv()
+                (sender, (r, msg), delay_to_add) = self._recv()
 
                 # Maintain an *unbounded* recv queue for each epoch
                 if r not in self._per_round_recv:
@@ -122,7 +126,7 @@ class HoneyBadgerBFT():
                 _recv = self._per_round_recv[r]
                 if _recv is not None:
                     # Queue it
-                    _recv.put((sender, msg))
+                    _recv.put((sender, msg, delay_to_add))
 
                 # else:
                 # We have already closed this
@@ -223,7 +227,7 @@ class HoneyBadgerBFT():
             coin_recvs[j] = Queue()
             coin = shared_coin(sid + 'COIN' + str(j), pid, N, f,
                                self.sPK, self.sSK,
-                               coin_bcast, coin_recvs[j].get)
+                               coin_bcast, coin_recvs[j].get, self.add_delay)
 
             def aba_bcast(o):
                 """Binary Byzantine Agreement multicast operation.
@@ -235,7 +239,7 @@ class HoneyBadgerBFT():
             aba_recvs[j] = Queue()
             gevent.spawn(binaryagreement, sid+'ABA'+str(j), pid, N, f, coin,
                          aba_inputs[j].get, aba_outputs[j].put_nowait,
-                         aba_bcast, aba_recvs[j].get)
+                         aba_bcast, aba_recvs[j].get, self.add_delay)
 
             def rbc_send(k, o):
                 """Reliable broadcast operation.
@@ -248,7 +252,7 @@ class HoneyBadgerBFT():
             rbc_input = my_rbc_input.get if j == pid else None
             rbc_recvs[j] = Queue()
             rbc = gevent.spawn(reliablebroadcast, sid+'RBC'+str(j), pid, N, f, j,
-                               rbc_input, rbc_recvs[j].get, rbc_send)
+                               rbc_input, rbc_recvs[j].get, rbc_send, self.add_delay)
             rbc_outputs[j] = rbc.get  # block for output from rbc
 
         # N instances of ABA, RBC
@@ -276,7 +280,7 @@ class HoneyBadgerBFT():
         return honeybadger_block(pid, self.N, self.f, self.ePK, self.eSK,
                                  _input.get,
                                  acs_in=my_rbc_input.put_nowait, acs_out=acs.get,
-                                 tpke_bcast=tpke_bcast, tpke_recv=tpke_recv.get)
+                                 tpke_bcast=tpke_bcast, tpke_recv=tpke_recv.get, add_delay=self.add_delay)
 
 
 def permute_list(lst, index):
